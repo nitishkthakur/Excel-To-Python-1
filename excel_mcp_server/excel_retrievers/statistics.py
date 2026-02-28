@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ._base import (
     compute_statistics,
@@ -15,25 +17,38 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    sheet_name: str | None = None,
-    content_type: str = "values",
-    header_row: int = 0,
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to compute statistics for. Pass null to "
+            "compute statistics for ALL sheets in the workbook."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="values",
+        description=(
+            "Accepted for interface consistency with other retrievers. "
+            "Statistics always operate on computed values regardless of "
+            "this setting. Allowed values: 'values', 'formulas', 'both'."
+        ),
+    )] = "values",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect."
+        ),
+    )] = 0,
 ) -> dict[str, Any]:
-    """Compute descriptive statistics for numeric columns.
+    """Use this retriever to get a quick quantitative overview of numeric
+    data in a sheet before diving deeper.
 
     Returns count, sum, mean, median, min, and max for each column that
-    contains numeric data.  Statistics always operate on **computed
-    values**, so content_type is accepted for interface consistency but
-    only ``"values"`` behaviour applies.
-
-    Parameters
-    ----------
-    file_path:   Path to the Excel file.
-    sheet_name:  Sheet name, or ``None`` for all sheets.
-    content_type: Accepted for consistency; statistics always use values.
-    header_row:  Row containing headers (0 = auto-detect).
+    contains numeric data. Statistics always operate on computed values.
     """
     validate_file(file_path)
     wb = open_workbook(file_path, data_only=True)

@@ -79,12 +79,13 @@ def discover_excel_files(
         ),
     )],
 ) -> str:
-    """List every Excel file (.xlsx / .xlsm / .xltx) in a directory.
+    """Use this as the **first step** to discover which Excel files are
+    available before calling any retriever.
 
-    Returns file names, absolute paths, sizes, and last-modified
-    timestamps.  Use this as the **first step** to discover which files
-    are available before calling any retriever.  Do NOT use this to read
-    file contents — use the appropriate retriever instead.
+    Lists every Excel file (.xlsx / .xlsm / .xltx) in the given directory.
+    Returns file names, absolute paths, sizes, and last-modified timestamps.
+    Do NOT use this to read file contents — use the appropriate retriever
+    instead.
     """
     files = list_excel_files(directory)
     if not files:
@@ -104,12 +105,11 @@ def inspect_workbook(
         ),
     )] = "json",
 ) -> str:
-    """Get high-level metadata about an Excel workbook.
+    """Use this **after** discover_excel_files to understand the structure of
+    a specific workbook before drilling into individual sheets.
 
     Returns file size, sheet count, sheet names, and per-sheet dimensions
-    (row and column counts).  Call this **after** discover_excel_files to
-    understand the structure of a specific workbook before drilling into
-    individual sheets.
+    (row and column counts).
     """
     result = get_workbook_info(file_path)
     return format_output(result, output_format)
@@ -121,10 +121,10 @@ def list_sheets(
         description="Absolute path to the Excel file.",
     )],
 ) -> str:
-    """Return the ordered list of sheet names in a workbook.
-
-    Use this when you just need to know which sheets exist without the
+    """Use this when you just need to know which sheets exist without the
     full metadata returned by inspect_workbook.
+
+    Returns the ordered list of sheet names in a workbook.
     """
     return _json(get_sheet_names(file_path))
 
@@ -188,11 +188,11 @@ def retrieve_sheet_data(
         ),
     )] = None,
 ) -> str:
-    """Read data rows from one or all sheets with pagination.
+    """Use this retriever to inspect actual cell contents — data values or
+    raw formulas — with pagination for large sheets.
 
-    Use this retriever to inspect actual cell contents — data values or
-    raw formulas.  **Start with content_type='formulas'** to understand
-    the sheet's calculation logic before requesting computed values.
+    **Start with content_type='formulas'** to understand the sheet's
+    calculation logic before requesting computed values.
 
     Returns paginated rows with headers, row counts, and a
     ``next_start_row`` field for fetching subsequent pages.  Supports
@@ -239,18 +239,15 @@ def retrieve_formulas(
         description="Header row (0 = auto-detect).",
     )] = 0,
 ) -> str:
-    """Extract every formula from one or all sheets with plain-English
-    explanations.
+    """Use this retriever for deep reports and lineage — call with
+    sheet_name=null to get a complete formula inventory across the entire
+    workbook.
 
     Each formula entry includes the cell address, column header name, raw
     Excel formula, and a human-readable explanation that uses header names
     and row numbers instead of cell references (e.g. "adds up 'Revenue'
-    rows 2 to 50").
-
-    **Use this for deep reports**: call with sheet_name=null to get a
-    complete formula inventory across the entire workbook.  This is the
-    best starting point for building a lineage or understanding how
-    outputs are calculated.
+    rows 2 to 50").  This is the best starting point for building a
+    lineage or understanding how outputs are calculated.
     """
     result = formula.retrieve(
         file_path,
@@ -299,7 +296,8 @@ def retrieve_summary(
         description="Header row (0 = auto-detect).",
     )] = 0,
 ) -> str:
-    """Generate a brief or detailed summary of one or all sheets.
+    """Use this retriever to get a structural overview of one or all sheets —
+    from a quick glance (brief) to a comprehensive deep dive (detailed).
 
     **Brief** (default): quick structural overview — headers, row/column
     counts, dimensions.
@@ -351,14 +349,12 @@ def retrieve_cell_info(
         description="Header row (0 = auto-detect).",
     )] = 0,
 ) -> str:
-    """Get full details about a single cell.
+    """Use this to drill into a specific cell after identifying it via
+    search or sheet data retrieval.
 
     Returns the cell's value, data type, column header name, and — if the
     cell contains a formula — the raw formula and a plain-English
     explanation using column headers and row labels.
-
-    Use this to drill into a specific cell after identifying it via
-    search or sheet data retrieval.
     """
     result = cell_info.retrieve(
         file_path,
@@ -398,11 +394,11 @@ def retrieve_range(
         description="Header row (0 = auto-detect).",
     )] = 0,
 ) -> str:
-    """Read data from a specific cell range.
+    """Use this when you know the exact cell range you need — e.g. from a
+    previous search result or a known layout.
 
-    Use this when you know the exact range you need (e.g. from a
-    previous search result or a known layout).  Returns all cells in the
-    range as a table.
+    Returns all cells in the range as a table with column headers resolved
+    from the sheet's header row.
     """
     result = range_data.retrieve(
         file_path,
@@ -453,14 +449,14 @@ def search_workbook(
         description="Maximum number of matches to return.",
     )] = 50,
 ) -> str:
-    """Search for a text value across cells in one or all sheets.
+    """Use this to locate where a specific variable, label, or value appears
+    across the workbook — especially useful for tracing how a variable is
+    calculated across multiple sheets.
 
     Returns matching cells with their sheet name, cell address, column
-    header, and value.  Use this to locate where a specific variable,
-    label, or value appears — especially useful when you need to trace
-    how a variable is calculated across multiple sheets.
+    header, and value.
 
-    **Tip**: search with content_type='formulas' to find which cells
+    **Tip**: search with ``content_type='formulas'`` to find which cells
     reference a particular variable name in their formulas.
     """
     result = search.retrieve(
@@ -493,13 +489,11 @@ def retrieve_statistics(
         description="Header row (0 = auto-detect).",
     )] = 0,
 ) -> str:
-    """Compute descriptive statistics for all numeric columns.
+    """Use this to get a quick quantitative overview of numeric data in a
+    sheet before diving deeper.
 
     Returns count, sum, mean, median, min, and max for each column that
     contains numeric data.  Statistics always operate on computed values.
-
-    Use this to get a quick quantitative overview of a sheet before
-    diving deeper.
     """
     result = statistics.retrieve(
         file_path,
@@ -527,15 +521,13 @@ def validate_data(
         description="Header row (0 = auto-detect).",
     )] = 0,
 ) -> str:
-    """Check data quality in one or all sheets.
+    """Use this before preparing a requirements document to identify which
+    columns are inputs vs. computed outputs, and to check data quality.
 
     Reports:
     - **Mixed types**: columns where cells contain different data types.
     - **Missing values**: columns with > 10 % empty / blank cells.
     - **Duplicate rows**: identical rows (sampled for large sheets).
-
-    Use this before preparing a requirements document to identify which
-    columns are inputs vs. computed outputs.
     """
     result = validation.retrieve(
         file_path,

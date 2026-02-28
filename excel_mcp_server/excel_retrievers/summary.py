@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ._base import (
     add_formula_explanations,
@@ -20,27 +22,61 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    sheet_name: str | None = None,
-    content_type: str = "formulas",
-    detail_level: str = "brief",
-    header_row: int = 0,
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to summarize. Pass null to summarize ALL "
+            "sheets in the workbook."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="formulas",
+        description=(
+            "What cell content to include. Allowed values: "
+            "'formulas' (default, **recommended**) — includes a formula "
+            "inventory with explanations in detailed mode. "
+            "'values' — omits formulas. "
+            "'both' — includes formulas with their computed values."
+        ),
+    )] = "formulas",
+    detail_level: Annotated[str, Field(
+        default="brief",
+        description=(
+            "Level of detail in the summary. Allowed values: "
+            "'brief' (default) — returns headers, dimensions, and "
+            "row/column counts. "
+            "'detailed' — adds column data types, sample data rows, "
+            "descriptive statistics for every numeric column, empty-cell "
+            "analysis, and (when content_type includes formulas) a full "
+            "formula inventory with human-readable explanations."
+        ),
+    )] = "brief",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect — useful for unstructured "
+            "sheets where headers are not in row 1."
+        ),
+    )] = 0,
 ) -> dict[str, Any]:
-    """Generate a summary of one or all sheets.
+    """Use this retriever to get a structural overview of one or all sheets —
+    from a quick glance (brief) to a comprehensive deep dive (detailed).
 
-    Parameters
-    ----------
-    file_path:    Path to the Excel file.
-    sheet_name:   Sheet name, or ``None`` for all sheets.
-    content_type: ``"formulas"`` (default) includes formula inventory in
-                  detailed mode. ``"values"`` omits formulas. ``"both"``
-                  includes formulas with computed values.
-    detail_level: ``"brief"`` returns headers, dimensions, row/column counts.
-                  ``"detailed"`` adds column types, sample rows, statistics,
-                  empty-cell analysis, and (when content_type includes
-                  formulas) a full formula inventory with explanations.
-    header_row:   Row containing headers (0 = auto-detect).
+    **Brief**: quick structural overview — headers, row/column counts,
+    dimensions.
+
+    **Detailed**: deep dive including column types, sample rows,
+    descriptive statistics, empty-cell counts, and a complete formula
+    inventory with explanations.
+
+    Use ``detail_level='detailed'`` with ``sheet_name=null`` to produce a
+    comprehensive overview of the entire workbook suitable for executive
+    summaries.
     """
     validate_file(file_path)
     validate_content_type(content_type)

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ._base import (
     add_formula_explanations,
@@ -18,22 +20,48 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    sheet_name: str | None = None,
-    content_type: str = "formulas",
-    header_row: int = 0,
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to extract formulas from. Pass null to "
+            "extract formulas from ALL sheets in the workbook."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="formulas",
+        description=(
+            "What to return for each formula cell. Allowed values: "
+            "'formulas' (default) — returns raw formula strings with "
+            "human-readable explanations. "
+            "'values' — also includes the computed value for each formula "
+            "cell. "
+            "'both' — returns formula strings, explanations, and computed "
+            "values."
+        ),
+    )] = "formulas",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect — useful for unstructured "
+            "sheets where headers are not in row 1."
+        ),
+    )] = 0,
 ) -> dict[str, Any]:
-    """Extract all formulas from one or all sheets with explanations.
+    """Use this retriever to get a complete formula inventory for building
+    lineage or understanding how outputs are calculated.
 
-    Parameters
-    ----------
-    file_path:    Path to the Excel file.
-    sheet_name:   Sheet name, or ``None`` for all sheets.
-    content_type: ``"formulas"`` returns formula strings + explanations.
-                  ``"values"`` also includes computed values per formula cell.
-                  ``"both"`` returns everything.
-    header_row:   Row containing headers (0 = auto-detect).
+    Each formula entry includes the cell address, column header name, raw
+    Excel formula, and a human-readable explanation that uses header names
+    and row numbers instead of cell references (e.g. "adds up 'Revenue'
+    rows 2 to 50").
+
+    Call with ``sheet_name=null`` for a full workbook formula inventory —
+    the best starting point for deep reports.
     """
     validate_file(file_path)
     validate_content_type(content_type)

@@ -105,19 +105,42 @@ tests/
 
 ## Retriever Contract
 
-Every retriever follows this pattern:
+Every retriever follows this pattern, with **inline parameter docs** using
+`Annotated[type, Field(description=...)]` from pydantic:
 
 ```python
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    sheet_name: str | None = None,    # None = all sheets
-    content_type: str = "formulas",   # "values" | "formulas" | "both"
-    header_row: int = 0,              # 0 = auto-detect
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description="Sheet name, or null for ALL sheets.",
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="formulas",
+        description="Allowed: 'formulas' | 'values' | 'both'.",
+    )] = "formulas",
+    header_row: Annotated[int, Field(
+        default=0,
+        description="Header row (0 = auto-detect).",
+    )] = 0,
     # ... retriever-specific params
 ) -> dict[str, Any]:
+    """<First line answers: when should I use this retriever?>
+
+    <Additional details about what is returned and tips.>
+    """
     ...
 ```
+
+### Documentation conventions
+
+- **Docstrings**: first line answers "when should the LLM use this tool?"
+- **Parameters**: use `Annotated[type, Field(description=...)]` for inline docs
+- **Constrained values**: list allowed values in the Field description
+  (e.g. `'formulas' | 'values' | 'both'`)
 
 Returns a `dict` with:
 - Single sheet: flat dict with `sheet_name`, `content_type`, and data

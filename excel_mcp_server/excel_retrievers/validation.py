@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ._base import (
     get_headers,
@@ -14,22 +16,40 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    sheet_name: str | None = None,
-    content_type: str = "values",
-    header_row: int = 0,
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to validate. Pass null to validate ALL "
+            "sheets in the workbook."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="values",
+        description=(
+            "Accepted for interface consistency with other retrievers. "
+            "Validation always operates on computed values regardless of "
+            "this setting. Allowed values: 'values', 'formulas', 'both'."
+        ),
+    )] = "values",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect."
+        ),
+    )] = 0,
 ) -> dict[str, Any]:
-    """Check data quality: mixed types, missing values, duplicate rows.
+    """Use this retriever to identify data-quality issues before preparing
+    a requirements document or to separate inputs from computed outputs.
 
-    Validation always operates on **computed values**.
-
-    Parameters
-    ----------
-    file_path:   Path to the Excel file.
-    sheet_name:  Sheet name, or ``None`` for all sheets.
-    content_type: Accepted for consistency; validation always uses values.
-    header_row:  Row containing headers (0 = auto-detect).
+    Reports:
+    - **Mixed types**: columns where cells contain different data types.
+    - **Missing values**: columns with > 10% empty / blank cells.
+    - **Duplicate rows**: identical rows (sampled for large sheets).
     """
     validate_file(file_path)
     wb = open_workbook(file_path, data_only=True)

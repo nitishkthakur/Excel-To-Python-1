@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
+from pydantic import Field
 from openpyxl.utils import get_column_letter
 
 from ._base import (
@@ -17,28 +18,65 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    query: str,
-    sheet_name: str | None = None,
-    content_type: str = "formulas",
-    header_row: int = 0,
-    case_sensitive: bool = False,
-    max_results: int = 50,
+    query: Annotated[str, Field(
+        description=(
+            "Substring to search for across cell values or formula "
+            "strings. The search is a substring match — the query can "
+            "appear anywhere in the cell content."
+        ),
+    )],
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to search. Pass null to search ALL sheets "
+            "in the workbook."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="formulas",
+        description=(
+            "Which cell view to search in. Allowed values: "
+            "'formulas' (default) — searches in raw formula strings; "
+            "use this to find which cells reference a variable name. "
+            "'values' — searches in computed cell values. "
+            "'both' — searches both views, deduplicating matches."
+        ),
+    )] = "formulas",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect."
+        ),
+    )] = 0,
+    case_sensitive: Annotated[bool, Field(
+        default=False,
+        description=(
+            "Whether the search should be case-sensitive. "
+            "false (default) performs a case-insensitive match."
+        ),
+    )] = False,
+    max_results: Annotated[int, Field(
+        default=50,
+        description=(
+            "Maximum number of matching cells to return. Default is 50. "
+            "Results beyond this limit are truncated."
+        ),
+    )] = 50,
 ) -> dict[str, Any]:
-    """Search for *query* across cells in one or all sheets.
+    """Use this retriever to locate where a specific variable, label, or
+    value appears across the workbook — especially useful for tracing how
+    a variable is calculated across multiple sheets.
 
-    Parameters
-    ----------
-    file_path:      Path to the Excel file.
-    query:          Substring to search for.
-    sheet_name:     Sheet name, or ``None`` to search every sheet.
-    content_type:   ``"values"`` searches computed values.
-                    ``"formulas"`` searches raw formula strings.
-                    ``"both"`` searches both views (deduplicated).
-    header_row:     Row containing headers (0 = auto-detect).
-    case_sensitive: Whether to match case.
-    max_results:    Maximum matches to return.
+    Returns matching cells with their sheet name, cell address, column
+    header, and value.
+
+    **Tip**: search with ``content_type='formulas'`` to find which cells
+    reference a particular variable name in their formulas.
     """
     validate_file(file_path)
     validate_content_type(content_type)

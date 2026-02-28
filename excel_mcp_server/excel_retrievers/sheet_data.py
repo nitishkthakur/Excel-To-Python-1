@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
+
+from pydantic import Field
 
 from ._base import (
     DEFAULT_PAGE_SIZE,
@@ -18,26 +20,72 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    sheet_name: str | None = None,
-    content_type: str = "formulas",
-    header_row: int = 0,
-    start_row: int = 1,
-    max_rows: int = DEFAULT_PAGE_SIZE,
-    columns: list[str] | None = None,
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to read. Pass null to read ALL sheets in "
+            "the workbook and return results for each."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="formulas",
+        description=(
+            "What cell content to return. Allowed values: "
+            "'formulas' (default, **recommended**) — returns raw formulas "
+            "with human-readable explanations; use this first to understand "
+            "the sheet logic. "
+            "'values' — returns computed cell values only. "
+            "'both' — returns computed values plus formula details."
+        ),
+    )] = "formulas",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect — the system scans the first "
+            "20 rows for the most likely header row; useful for "
+            "unstructured sheets where headers are not in row 1."
+        ),
+    )] = 0,
+    start_row: Annotated[int, Field(
+        default=1,
+        description=(
+            "1-based starting row for pagination. 1 (default) means start "
+            "from the header row. Data rows begin after the detected or "
+            "specified header row."
+        ),
+    )] = 1,
+    max_rows: Annotated[int, Field(
+        default=DEFAULT_PAGE_SIZE,
+        description=(
+            "Maximum number of data rows to return per sheet. "
+            f"Default is {DEFAULT_PAGE_SIZE}. Use with start_row for "
+            "pagination through large sheets."
+        ),
+    )] = DEFAULT_PAGE_SIZE,
+    columns: Annotated[list[str] | None, Field(
+        default=None,
+        description=(
+            "Optional list of column header names to include. When null "
+            "(default), all columns are returned. Column names must match "
+            "the headers exactly."
+        ),
+    )] = None,
 ) -> dict[str, Any]:
-    """Read paginated data rows from one or all sheets.
+    """Use this retriever to inspect actual cell contents — data values or
+    raw formulas — with pagination for large sheets.
 
-    Parameters
-    ----------
-    file_path:   Path to the Excel file.
-    sheet_name:  Sheet name, or ``None`` for all sheets.
-    content_type: ``"values"`` | ``"formulas"`` | ``"both"``.
-    header_row:  Row number with headers (0 = auto-detect).
-    start_row:   1-based starting row (1 = header row).
-    max_rows:    Maximum data rows per sheet.
-    columns:     Optional list of header names to include.
+    **Start with content_type='formulas'** to understand the sheet's
+    calculation logic before requesting computed values.
+
+    Returns paginated rows with headers, row counts, and a
+    ``next_start_row`` field for fetching subsequent pages.  Supports
+    column filtering and auto-detection of header rows for unstructured
+    sheets.
     """
     validate_file(file_path)
     validate_content_type(content_type)

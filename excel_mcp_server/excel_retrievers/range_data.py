@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
+from pydantic import Field
 from openpyxl.utils import get_column_letter, range_boundaries
 
 from ._base import (
@@ -18,22 +19,46 @@ from ._base import (
 
 
 def retrieve(
-    file_path: str,
+    file_path: Annotated[str, Field(
+        description="Absolute path to the Excel file (.xlsx, .xlsm, .xltx).",
+    )],
     *,
-    range_ref: str,
-    sheet_name: str | None = None,
-    content_type: str = "formulas",
-    header_row: int = 0,
+    range_ref: Annotated[str, Field(
+        description=(
+            "Cell range address in Excel notation, e.g. 'B2:E20' or "
+            "'A1:D10'. Case-insensitive."
+        ),
+    )],
+    sheet_name: Annotated[str | None, Field(
+        default=None,
+        description=(
+            "Name of the sheet to read from. Defaults to the active "
+            "sheet when null."
+        ),
+    )] = None,
+    content_type: Annotated[str, Field(
+        default="formulas",
+        description=(
+            "What cell content to return. Allowed values: "
+            "'formulas' (default, **recommended**) — returns raw formulas "
+            "with explanations. "
+            "'values' — returns computed values only. "
+            "'both' — returns computed values plus formula details."
+        ),
+    )] = "formulas",
+    header_row: Annotated[int, Field(
+        default=0,
+        description=(
+            "1-based row number containing column headers. "
+            "0 (default) means auto-detect."
+        ),
+    )] = 0,
 ) -> dict[str, Any]:
-    """Read data from an explicit cell range such as ``"A1:D10"``.
+    """Use this retriever when you know the exact cell range you need — e.g.
+    from a previous search result or a known layout.
 
-    Parameters
-    ----------
-    file_path:   Path to the Excel file.
-    range_ref:   Range address (e.g. ``"B2:E20"``).
-    sheet_name:  Sheet name (defaults to the active sheet).
-    content_type: ``"values"`` | ``"formulas"`` | ``"both"``.
-    header_row:  Row containing headers (0 = auto-detect).
+    Returns all cells in the range as a table with column headers resolved
+    from the sheet's header row.
     """
     validate_file(file_path)
     validate_content_type(content_type)
