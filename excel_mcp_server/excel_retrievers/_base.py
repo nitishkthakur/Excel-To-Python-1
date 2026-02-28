@@ -24,6 +24,10 @@ DEFAULT_PAGE_SIZE = 100
 VALID_CONTENT_TYPES = ("values", "formulas", "both")
 VALID_OUTPUT_FORMATS = ("json", "markdown", "csv")
 
+# Header auto-detection thresholds
+MIN_HEADER_FILL_RATIO = 0.4    # ≥ 40 % of cells must be non-empty
+MIN_HEADER_STRING_RATIO = 0.5  # ≥ 50 % of non-empty cells must be strings
+
 
 # ── Validation helpers ───────────────────────────────────────────────────
 
@@ -124,10 +128,10 @@ def detect_header_row(ws, max_col: int | None = None) -> int:
             ws.cell(row=row_idx, column=c).value for c in range(1, mc + 1)
         ]
         non_empty = [v for v in values if v is not None and str(v).strip()]
-        if len(non_empty) < max(1, mc * 0.4):
+        if len(non_empty) < max(1, mc * MIN_HEADER_FILL_RATIO):
             continue
         str_count = sum(1 for v in non_empty if isinstance(v, str))
-        if str_count >= len(non_empty) * 0.5:
+        if str_count >= len(non_empty) * MIN_HEADER_STRING_RATIO:
             return row_idx
     return 1
 

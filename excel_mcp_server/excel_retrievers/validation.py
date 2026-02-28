@@ -48,7 +48,7 @@ def retrieve(
 def _validate(ws, sheet_name: str, header_row: int) -> dict[str, Any]:
     max_col = ws.max_column or 0
     max_row = ws.max_row or 0
-    headers, hrow = get_headers(ws, max_col, header_row)
+    headers, hrow = get_headers(ws, max_col, header_row=header_row)
     data_start = hrow + 1
 
     issues: list[dict[str, Any]] = []
