@@ -4,51 +4,54 @@ An MCP (Model Context Protocol) server that acts as a retrieval layer for
 Excel workbooks.  It lets LLM-based agents explore, query, summarize, and
 analyze `.xlsx` / `.xlsm` / `.xltx` files ranging from **1 KB to 100 MB**.
 
-## Features
+## Architecture
+
+Each retriever is a **separate MCP tool** with Anthropic-style documentation
+(`Annotated[Field]`), so the LLM can discover and choose the right one.
+All retrievers share a consistent interface:
+
+- **`sheet_name`** — pass `null` to operate on **all sheets**, or a name for one sheet
+- **`content_type`** — `"formulas"` (default, recommended), `"values"`, or `"both"`
+- **`output_format`** — `"markdown"`, `"json"`, or `"csv"`
+- **`header_row`** — `0` for auto-detect (handles unstructured sheets), or explicit row
+
+## Tools
 
 | Tool | Purpose |
 |---|---|
-| `list_excel_files` | Discover Excel files in a directory |
-| `get_workbook_info` | File metadata, sheet list, and dimensions |
-| `get_sheet_names` | Quick list of all sheet names |
-| `get_sheet_summary` | **Brief** (headers, row/col counts) or **detailed** (types, sample rows, statistics, formulas with human-readable explanations) |
-| `read_sheet_data` | Paginated row retrieval with optional column filter |
-| `get_cell_info` | Value, type, formula + explanation for a single cell |
-| `get_range_data` | Read an arbitrary cell range (e.g. `A1:D10`) |
-| `get_formulas` | Every formula in a sheet with plain-English explanations |
-| `search_in_sheet` | Substring search across all cells |
-| `get_sheet_statistics` | Descriptive stats (count, sum, mean, median, min, max) for numeric columns |
-| `validate_sheet_data` | Data-quality checks (mixed types, missing values, duplicates) |
+| `discover_excel_files` | Find Excel files in a directory |
+| `inspect_workbook` | File metadata, sheet list, dimensions |
+| `list_sheets` | Quick list of sheet names |
+| `retrieve_sheet_data` | Paginated row retrieval with column filter |
+| `retrieve_formulas` | Every formula with plain-English explanations |
+| `retrieve_summary` | Brief or detailed sheet summaries |
+| `retrieve_cell_info` | Deep-dive into a single cell |
+| `retrieve_range` | Read an arbitrary cell range |
+| `search_workbook` | Search values/formulas across all sheets |
+| `retrieve_statistics` | Descriptive stats for numeric columns |
+| `validate_data` | Data-quality checks (mixed types, missing values, duplicates) |
 
 ### Formula Explanations
-
-Formulas are translated into natural language using column headers and row
-numbers instead of raw cell references:
 
 ```
 =SUM(B2:B4)  →  "This formula adds up 'Revenue' (rows 2 to 4)."
 =B2-C2       →  "In row 2: This formula computes: 'Revenue' (row 2) - 'Cost' (row 2)."
 ```
 
-### Large-File Handling
+### Unstructured Sheet Support
 
-Files larger than **5 MB** are automatically opened in read-only streaming
-mode to keep memory usage low.  Data retrieval is paginated (default 100
-rows per page) so even 100 MB files can be queried efficiently.
+Sheets where headers are not in row 1 are handled via auto-detection
+(`header_row=0`).  The system scans the first 20 rows to find the most
+likely header row.
 
 ## Quick Start
 
 ```bash
-# Install
 pip install -r requirements.txt
-
-# Run the server (stdio transport)
-python -m excel_mcp_server.server
+python -m excel_mcp_server.server     # stdio transport
 ```
 
 ### MCP Client Configuration
-
-Add the following to your MCP client config (e.g. Claude Desktop):
 
 ```json
 {
@@ -64,23 +67,31 @@ Add the following to your MCP client config (e.g. Claude Desktop):
 ## Development
 
 ```bash
-# Install dev dependencies
 pip install -r requirements.txt
-
-# Run tests
-python -m pytest tests/ -v
+python -m pytest tests/ -v            # 140 tests
 ```
 
 ## Project Structure
 
 ```
 excel_mcp_server/
-├── __init__.py            # Package marker
-├── server.py              # MCP tool definitions (entry point)
-├── excel_reader.py        # Core reading, analysis & data extraction
-└── formula_explainer.py   # Formula → plain-English translator
+├── server.py                  # MCP tool definitions (entry point)
+├── formula_explainer.py       # Formula → plain-English translator
+└── excel_retrievers/          # All retrieval logic
+    ├── _base.py               # Shared utilities, discovery functions
+    ├── _formatters.py         # JSON / Markdown / CSV formatters
+    ├── sheet_data.py          # Paginated data retriever
+    ├── formula.py             # Formula extraction retriever
+    ├── search.py              # Cross-sheet search retriever
+    ├── summary.py             # Summary retriever
+    ├── cell_info.py           # Single cell retriever
+    ├── range_data.py          # Range retriever
+    ├── statistics.py          # Statistics retriever
+    └── validation.py          # Validation retriever
 tests/
-├── conftest.py            # Shared fixtures (sample workbooks)
-├── test_excel_reader.py   # Tests for every reader function
-└── test_formula_explainer.py  # Tests for formula explanations
+├── conftest.py                # Fixtures (5 workbook types)
+├── test_retrievers.py         # Retriever unit tests
+├── test_formatters.py         # Formatter tests
+├── test_formula_explainer.py  # Formula explainer tests
+└── test_e2e.py                # End-to-end MCP tool tests
 ```

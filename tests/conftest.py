@@ -33,6 +33,14 @@ def sample_workbook(tmp_dir):
     1   Key        Value
     2   Year       2024
     3   Region     North
+
+    Sheet 'Expenses':
+        A            B
+    1   Category     Amount
+    2   Travel       500
+    3   Office       300
+    4   Software     200
+    5   Total        =SUM(B2:B4)
     """
     path = os.path.join(tmp_dir, "sample.xlsx")
     wb = openpyxl.Workbook()
@@ -58,6 +66,52 @@ def sample_workbook(tmp_dir):
     ws2.append(["Year", 2024])
     ws2.append(["Region", "North"])
 
+    # --- Expenses sheet ---
+    ws3 = wb.create_sheet("Expenses")
+    ws3.append(["Category", "Amount"])
+    ws3.append(["Travel", 500])
+    ws3.append(["Office", 300])
+    ws3.append(["Software", 200])
+    ws3.append(["Total", None])
+    ws3["B5"] = "=SUM(B2:B4)"
+
+    wb.save(path)
+    wb.close()
+    return path
+
+
+@pytest.fixture()
+def unstructured_workbook(tmp_dir):
+    """Workbook where headers are NOT in row 1.
+
+    Sheet 'Messy':
+        A                       B          C
+    1   Financial Report 2024
+    2   (blank)
+    3   Item                    Amount     Tax
+    4   Rent                    5000       =B4*0.1
+    5   Utilities               1200       =B5*0.1
+    6   Total                   =SUM(B4:B5) =SUM(C4:C5)
+    """
+    path = os.path.join(tmp_dir, "unstructured.xlsx")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Messy"
+    ws["A1"] = "Financial Report 2024"
+    # Row 2 blank
+    ws["A3"] = "Item"
+    ws["B3"] = "Amount"
+    ws["C3"] = "Tax"
+    ws["A4"] = "Rent"
+    ws["B4"] = 5000
+    ws["C4"] = "=B4*0.1"
+    ws["A5"] = "Utilities"
+    ws["B5"] = 1200
+    ws["C5"] = "=B5*0.1"
+    ws["A6"] = "Total"
+    ws["B6"] = "=SUM(B4:B5)"
+    ws["C6"] = "=SUM(C4:C5)"
+
     wb.save(path)
     wb.close()
     return path
@@ -79,4 +133,20 @@ def non_excel_file(tmp_dir):
     path = os.path.join(tmp_dir, "data.txt")
     with open(path, "w") as f:
         f.write("not excel")
+    return path
+
+
+@pytest.fixture()
+def mixed_type_workbook(tmp_dir):
+    """Workbook with mixed data types in a column for validation testing."""
+    path = os.path.join(tmp_dir, "mixed.xlsx")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Data"
+    ws.append(["ID", "Value"])
+    ws.append([1, 100])
+    ws.append([2, "text"])
+    ws.append([3, 300])
+    wb.save(path)
+    wb.close()
     return path
